@@ -19,20 +19,26 @@ fn app<'a>(fun: Box<Term<'a>>, arg: Box<Term<'a>>) -> Box<Term<'a>> {
     Box::new(App(fun, arg))
 }
 
-// named!(
-//     parse_app<Box<Term>>,
-//     do_parse!(fun: parse_term() >> arg: parse_term() >> app(fun, arg))
-// );
+named!(parse_term<Box<Term>>, alt_complete!(parse_app | parse_var));
+
+named!(
+    parse_app<Box<Term>>,
+    do_parse!(fun: parse_fun >> space >> arg: parse_term >> (app(fun, arg)))
+);
 
 named!(
     parse_var<Box<Term>>,
     map_res!(alpha, |letters| { std::str::from_utf8(letters).map(var) })
 );
 
-named!(parse_term<Box<Term>>, alt!(parse_var));
+named!(parse_fun<Box<Term>>, alt_complete!(parse_var));
 
-pub fn parse(input: &str) -> Box<Term> {
-    parse_term(input.as_bytes()).unwrap().1
+pub fn parse(input: &str) -> Result<Box<Term>, String> {
+    match parse_term(input.as_bytes()) {
+        nom::IResult::Done(_input, output) => Ok(output),
+        nom::IResult::Error(error) => Err(format!("Error {:?}", error)),
+        nom::IResult::Incomplete(needed) => Err(format!("Incomplete {:?}", needed)),
+    }
 }
 
 #[cfg(test)]
@@ -41,11 +47,11 @@ mod tests {
 
     #[test]
     fn simple_variable() {
-        assert_eq!(parse("var"), var("var"));
+        assert_eq!(parse("var"), Ok(var("var")));
     }
 
     #[test]
     fn simple_application() {
-        assert_eq!(parse("fun var"), app(var("fun"), var("var")));
+        assert_eq!(parse("fun var"), Ok(app(var("fun"), var("var"))));
     }
 }
