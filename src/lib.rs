@@ -8,7 +8,7 @@ use Term::*;
 pub enum Term<'a> {
     Var(&'a str),
     App(Box<Term<'a>>, Box<Term<'a>>),
-    Abs(&'a str, Box<Term<'a>>),
+    Fun(&'a str, Box<Term<'a>>),
 }
 
 fn var(name: &str) -> Box<Term> {
@@ -19,7 +19,14 @@ fn app<'a>(fun: Box<Term<'a>>, arg: Box<Term<'a>>) -> Box<Term<'a>> {
     Box::new(App(fun, arg))
 }
 
-named!(parse_term<Box<Term>>, alt_complete!(parse_app | parse_var));
+fn fun<'a>(arg: &'a str, body: Box<Term<'a>>) -> Box<Term<'a>> {
+    Box::new(Fun(arg, body))
+}
+
+named!(
+    parse_term<Box<Term>>,
+    alt_complete!(parse_app | parse_fun | parse_var)
+);
 
 named!(
     parse_app<Box<Term>>,
@@ -31,7 +38,23 @@ named!(
     map_res!(alpha, |letters| { std::str::from_utf8(letters).map(var) })
 );
 
-named!(parse_fun<Box<Term>>, alt_complete!(parse_var));
+named!(
+    parse_fun<Box<Term>>,
+    alt_complete!(parse_var | parse_fun_abstraction)
+);
+
+named!(
+    parse_fun_abstraction<Box<Term>>,
+    map_res!(
+        do_parse!(
+            tag!("(") >> opt!(space) >> arg: alpha >> opt!(space) >> tag!("->") >> opt!(space)
+                >> body: parse_term >> opt!(space) >> tag!(")") >> ((arg, body))
+        ),
+        |(arg, body)| { std::str::from_utf8(arg).map(|arg| fun(arg, body)) }
+    )
+);
+
+
 
 pub fn parse(input: &str) -> Result<Box<Term>, String> {
     match parse_term(input.as_bytes()) {
@@ -53,5 +76,10 @@ mod tests {
     #[test]
     fn simple_application() {
         assert_eq!(parse("fun var"), Ok(app(var("fun"), var("var"))));
+    }
+
+    #[test]
+    fn simple_function() {
+        assert_eq!(parse("( x  -> x)"), Ok(fun("x", var("x"))));
     }
 }
