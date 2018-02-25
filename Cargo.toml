@@ -4,4 +4,5 @@ version = "0.1.0"
 authors = ["Paweł Obrok <pawel.obrok@gmail.com>"]
 
 [dependencies]
-nom = "*"
+nom = "3.2.1"
+immutable-map = "0.1.2"
