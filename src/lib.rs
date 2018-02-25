@@ -4,7 +4,14 @@ extern crate nom;
 
 use nom::{alpha, space};
 use Term::*;
+use Statement::*;
 use immutable_map::TreeMap;
+
+#[derive(Debug, PartialEq)]
+pub enum Statement<'a> {
+    Def { name: &'a str, value: Box<Term<'a>> },
+    Expr(Box<Term<'a>>),
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Term<'a> {
@@ -56,7 +63,29 @@ named!(
     )
 );
 
+named!(
+    parse_def_list<Vec<Statement>>,
+    separated_list_complete!(tag!(";"), parse_statement)
+);
 
+named!(
+    parse_statement<Statement>,
+    map_res!(
+        do_parse!(
+            opt!(space) >> name: alpha >> opt!(space) >> tag!("=") >> opt!(space)
+                >> value: parse_term >> ((name, value))
+        ),
+        |(name, value)| { std::str::from_utf8(name).map(|name| Def { name, value }) }
+    )
+);
+
+pub fn parse_statements(input: &str) -> Result<Vec<Statement>, String> {
+    match parse_def_list(input.as_bytes()) {
+        nom::IResult::Done(_input, output) => Ok(output),
+        nom::IResult::Error(error) => Err(format!("Error {:?}", error)),
+        nom::IResult::Incomplete(needed) => Err(format!("Incomplete {:?}", needed)),
+    }
+}
 
 pub fn parse(input: &str) -> Result<Box<Term>, String> {
     match parse_term(input.as_bytes()) {
@@ -113,5 +142,18 @@ mod tests {
     #[test]
     fn apply_function() {
         assert_eq!(eval(app(fun("x", var("x")), var("y"))), var("y"))
+    }
+
+    #[test]
+    fn parsing_statements() {
+        assert_eq!(
+            parse_statements("f = (x -> x)"),
+            Ok(vec![
+                Def {
+                    name: "f",
+                    value: fun("x", var("x")),
+                },
+            ])
+        )
     }
 }
