@@ -64,12 +64,23 @@ named!(
 );
 
 named!(
+    semicolon<()>,
+    do_parse!(opt!(space) >> tag!(";") >> opt!(space) >> (()))
+);
+
+
+named!(
     parse_def_list<Vec<Statement>>,
-    separated_list_complete!(tag!(";"), parse_statement)
+    separated_list_complete!(semicolon, parse_statement)
 );
 
 named!(
     parse_statement<Statement>,
+    alt_complete!(parse_def | parse_expr)
+);
+
+named!(
+    parse_def<Statement>,
     map_res!(
         do_parse!(
             opt!(space) >> name: alpha >> opt!(space) >> tag!("=") >> opt!(space)
@@ -78,6 +89,8 @@ named!(
         |(name, value)| { std::str::from_utf8(name).map(|name| Def { name, value }) }
     )
 );
+
+named!(parse_expr<Statement>, map!(parse_term, Expr));
 
 pub fn parse_statements(input: &str) -> Result<Vec<Statement>, String> {
     match parse_def_list(input.as_bytes()) {
@@ -145,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn parsing_statements() {
+    fn parsing_definitions() {
         assert_eq!(
             parse_statements("f = (x -> x)"),
             Ok(vec![
@@ -153,6 +166,18 @@ mod tests {
                     name: "f",
                     value: fun("x", var("x")),
                 },
+            ])
+        )
+    }
+
+    #[test]
+    fn parsing_expression_statements() {
+        assert_eq!(
+            parse_statements("x; y; (x -> x)"),
+            Ok(vec![
+                Expr(var("x")),
+                Expr(var("y")),
+                Expr(fun("x", var("x"))),
             ])
         )
     }
