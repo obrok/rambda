@@ -121,6 +121,15 @@ fn eval_with_env<'a>(term: Box<Term<'a>>, env: &TreeMap<&'a str, Box<Term<'a>>>)
     }
 }
 
+pub fn unparse(term: Box<Term>) -> String {
+    let term = *term;
+    match term {
+        Var(x) => format!("{}", x),
+        App(f, x) => format!("{} {}", unparse(f), unparse(x)),
+        Fun(x, body) => format!("({} -> {})", x, unparse(body)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,5 +182,10 @@ mod tests {
                 Expr(fun("x", var("x"))),
             ])
         )
+    }
+
+    #[test]
+    fn unparsing() {
+        assert_eq!(unparse(app(fun("x", var("x")), var("y"))), "(x -> x) y")
     }
 }
