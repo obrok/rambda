@@ -32,6 +32,8 @@ fn fun<'a>(arg: &'a str, body: Box<Term<'a>>) -> Box<Term<'a>> {
     Box::new(Fun(arg, body))
 }
 
+named!(alpha_utf8<&str>, map_res!(alpha, std::str::from_utf8));
+
 named!(
     parse_term<Box<Term>>,
     alt_complete!(parse_app | parse_fun | parse_var)
@@ -42,10 +44,7 @@ named!(
     do_parse!(fun: parse_fun >> space >> arg: parse_term >> (app(fun, arg)))
 );
 
-named!(
-    parse_var<Box<Term>>,
-    map_res!(alpha, |letters| { std::str::from_utf8(letters).map(var) })
-);
+named!(parse_var<Box<Term>>, map!(alpha_utf8, var));
 
 named!(
     parse_fun<Box<Term>>,
@@ -54,12 +53,9 @@ named!(
 
 named!(
     parse_fun_abstraction<Box<Term>>,
-    map_res!(
-        do_parse!(
-            tag!("(") >> opt!(space) >> arg: alpha >> opt!(space) >> tag!("->") >> opt!(space)
-                >> body: parse_term >> opt!(space) >> tag!(")") >> ((arg, body))
-        ),
-        |(arg, body)| { std::str::from_utf8(arg).map(|arg| fun(arg, body)) }
+    do_parse!(
+        tag!("(") >> opt!(space) >> arg: alpha_utf8 >> opt!(space) >> tag!("->") >> opt!(space)
+            >> body: parse_term >> opt!(space) >> tag!(")") >> (fun(arg, body))
     )
 );
 
@@ -81,12 +77,9 @@ named!(
 
 named!(
     parse_def<Statement>,
-    map_res!(
-        do_parse!(
-            opt!(space) >> name: alpha >> opt!(space) >> tag!("=") >> opt!(space)
-                >> value: parse_term >> ((name, value))
-        ),
-        |(name, value)| { std::str::from_utf8(name).map(|name| Def { name, value }) }
+    do_parse!(
+        opt!(space) >> name: alpha_utf8 >> opt!(space) >> tag!("=") >> opt!(space)
+            >> value: parse_term >> (Def { name, value })
     )
 );
 
