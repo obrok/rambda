@@ -93,15 +93,15 @@ named!(
 named!(parse_expr<Statement>, map!(parse_term, Expr));
 
 pub fn parse_statements(input: &str) -> Result<Vec<Statement>, String> {
-    match parse_def_list(input.as_bytes()) {
-        nom::IResult::Done(_input, output) => Ok(output),
-        nom::IResult::Error(error) => Err(format!("Error {:?}", error)),
-        nom::IResult::Incomplete(needed) => Err(format!("Incomplete {:?}", needed)),
-    }
+    normalize_error(parse_def_list(input.as_bytes()))
 }
 
 pub fn parse(input: &str) -> Result<Box<Term>, String> {
-    match parse_term(input.as_bytes()) {
+    normalize_error(parse_term(input.as_bytes()))
+}
+
+fn normalize_error<I, O>(nom_result: nom::IResult<I, O>) -> Result<O, String> {
+    match nom_result {
         nom::IResult::Done(_input, output) => Ok(output),
         nom::IResult::Error(error) => Err(format!("Error {:?}", error)),
         nom::IResult::Incomplete(needed) => Err(format!("Incomplete {:?}", needed)),
