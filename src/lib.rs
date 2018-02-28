@@ -22,6 +22,8 @@ pub enum Term {
     Fun(String, Rc<Term>),
 }
 
+pub type Env<'a> = TreeMap<&'a String, &'a Rc<Term>>;
+
 fn var(name: &str) -> Rc<Term> {
     Rc::new(Var(String::from(name)))
 }
@@ -114,19 +116,24 @@ pub fn eval_statements<'a>(statements: &'a Vec<Statement>) -> Vec<&'a Rc<Term>> 
     let mut results = Vec::new();
     let mut env = TreeMap::new();
     for statement in statements {
-        match statement {
-            &Expr(ref expr) => results.push(eval_with_env(&expr, &env)),
-            &Def {
-                ref name,
-                ref value,
-            } => {
-                let result = eval_with_env(&value, &env);
-                env = env.insert(name, value);
-                results.push(result);
-            }
-        }
+        let result_pair = eval_statement(statement, env);
+        results.push(result_pair.0);
+        env = result_pair.1;
     }
     results
+}
+
+pub fn eval_statement<'a>(statement: &'a Statement, env: Env<'a>) -> (&'a Rc<Term>, Env<'a>) {
+    match statement {
+        &Expr(ref expr) => (eval_with_env(&expr, &env), env),
+        &Def {
+            ref name,
+            ref value,
+        } => {
+            let result = eval_with_env(&value, &env);
+            (result, env.insert(name, value))
+        }
+    }
 }
 
 fn eval_with_env<'a>(term: &'a Rc<Term>, env: &TreeMap<&String, &'a Rc<Term>>) -> &'a Rc<Term> {
