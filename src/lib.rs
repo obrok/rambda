@@ -112,12 +112,16 @@ pub fn eval(term: &Rc<Term>) -> &Rc<Term> {
 
 pub fn eval_statements<'a>(statements: &'a Vec<Statement>) -> Vec<&'a Rc<Term>> {
     let mut results = Vec::new();
-    let env = TreeMap::new();
+    let mut env = TreeMap::new();
     for statement in statements {
         match statement {
             &Expr(ref expr) => results.push(eval_with_env(&expr, &env)),
-            &Def { name: _, ref value } => {
+            &Def {
+                ref name,
+                ref value,
+            } => {
                 let result = eval_with_env(&value, &env);
+                env = env.insert(name, value);
                 results.push(result);
             }
         }
@@ -127,7 +131,7 @@ pub fn eval_statements<'a>(statements: &'a Vec<Statement>) -> Vec<&'a Rc<Term>> 
 
 fn eval_with_env<'a>(term: &'a Rc<Term>, env: &TreeMap<&String, &'a Rc<Term>>) -> &'a Rc<Term> {
     match term.borrow() {
-        &App(ref fun, ref arg) => match fun.borrow() {
+        &App(ref fun, ref arg) => match eval_with_env(fun, env).borrow() {
             &Fun(ref argname, ref body) => {
                 eval_with_env(&body, &env.insert(&argname, eval_with_env(&arg, &env)))
             }
