@@ -2,7 +2,7 @@ extern crate immutable_map;
 #[macro_use]
 extern crate nom;
 
-use nom::{alpha, space};
+use nom::{alpha, multispace};
 use Term::*;
 use Statement::*;
 use immutable_map::TreeMap;
@@ -45,7 +45,7 @@ named!(
 
 named!(
     parse_app<Rc<Term>>,
-    do_parse!(fun: parse_fun >> space >> arg: parse_term >> (app(fun, arg)))
+    do_parse!(fun: parse_fun >> whitespace >> arg: parse_term >> (app(fun, arg)))
 );
 
 named!(parse_var<Rc<Term>>, map!(alpha_utf8, var));
@@ -58,14 +58,14 @@ named!(
 named!(
     parse_fun_abstraction<Rc<Term>>,
     do_parse!(
-        tag!("(") >> opt!(space) >> arg: alpha_utf8 >> opt!(space) >> tag!("->") >> opt!(space)
-            >> body: parse_term >> opt!(space) >> tag!(")") >> (fun(arg, body))
+        tag!("(") >> whitespace >> arg: alpha_utf8 >> whitespace >> tag!("->") >> whitespace
+            >> body: parse_term >> whitespace >> tag!(")") >> (fun(arg, body))
     )
 );
 
 named!(
     semicolon<()>,
-    do_parse!(opt!(space) >> tag!(";") >> opt!(space) >> (()))
+    do_parse!(whitespace >> tag!(";") >> whitespace >> (()))
 );
 
 
@@ -82,13 +82,15 @@ named!(
 named!(
     parse_def<Statement>,
     do_parse!(
-        opt!(space) >> name: alpha_utf8 >> opt!(space) >> tag!("=") >> opt!(space)
-            >> value: parse_term >> (Def {
-            name: String::from(name),
-            value,
-        })
+        whitespace >> name: alpha_utf8 >> whitespace >> tag!("=") >> whitespace >> value: parse_term
+            >> (Def {
+                name: String::from(name),
+                value,
+            })
     )
 );
+
+named!(whitespace<()>, map!(opt!(multispace), |_| ()));
 
 named!(parse_expr<Statement>, map!(parse_term, Expr));
 
