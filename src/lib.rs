@@ -159,6 +159,16 @@ pub fn unparse(term: &Rc<Term>) -> String {
     }
 }
 
+pub fn unparse_statement(statement: &Statement) -> String {
+    match statement {
+        &Expr(ref x) => unparse(x),
+        &Def {
+            ref name,
+            ref value,
+        } => format!("{} = {}", name, unparse(value)),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,6 +226,18 @@ mod tests {
     #[test]
     fn unparsing() {
         assert_eq!(unparse(&app(fun("x", var("x")), var("y"))), "(x -> x) y")
+    }
+
+    #[test]
+    fn unparsing_statements() {
+        assert_eq!(unparse_statement(&Expr(fun("x", var("x")))), "(x -> x)");
+        assert_eq!(
+            unparse_statement(&Def {
+                name: String::from("f"),
+                value: fun("x", var("x")),
+            }),
+            "f = (x -> x)"
+        );
     }
 
     #[test]
