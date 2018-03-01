@@ -45,7 +45,20 @@ named!(
 
 named!(
     parse_app<Rc<Term>>,
-    do_parse!(fun: parse_fun >> whitespace >> arg: parse_term >> (app(fun, arg)))
+    map_opt!(
+        separated_list_complete!(whitespace, parse_fun),
+        |terms: Vec<Rc<Term>>| {
+            let mut terms = terms.clone();
+            terms.reverse();
+            let mut result = terms.pop();
+            terms.reverse();
+
+            for item in terms {
+                result = result.map(|result| app(result, item))
+            }
+            result
+        }
+    )
 );
 
 named!(parse_var<Rc<Term>>, map!(alpha_utf8, var));
@@ -198,6 +211,11 @@ mod tests {
     #[test]
     fn apply_function() {
         assert_eq!(eval(&app(fun("x", var("x")), var("y"))), &var("y"))
+    }
+
+    #[test]
+    fn application_is_left_associative() {
+        assert_eq!(parse("a b c"), Ok(app(app(var("a"), var("b")), var("c"))))
     }
 
     #[test]
