@@ -123,11 +123,11 @@ fn normalize_error<I, O>(nom_result: nom::IResult<I, O>) -> Result<O, String> {
     }
 }
 
-pub fn eval(term: &Rc<Term>) -> &Rc<Term> {
+pub fn eval(term: &Rc<Term>) -> Rc<Term> {
     eval_with_env(term, &TreeMap::new())
 }
 
-pub fn eval_statements<'a>(statements: &'a Vec<Statement>) -> Vec<&'a Rc<Term>> {
+pub fn eval_statements<'a>(statements: &'a Vec<Statement>) -> Vec<Rc<Term>> {
     let mut results = Vec::new();
     let mut env = TreeMap::new();
     for statement in statements {
@@ -138,7 +138,7 @@ pub fn eval_statements<'a>(statements: &'a Vec<Statement>) -> Vec<&'a Rc<Term>> 
     results
 }
 
-pub fn eval_statement<'a>(statement: &'a Statement, env: Env<'a>) -> (&'a Rc<Term>, Env<'a>) {
+pub fn eval_statement<'a>(statement: &'a Statement, env: Env<'a>) -> (Rc<Term>, Env<'a>) {
     match statement {
         &Expr(ref expr) => (eval_with_env(&expr, &env), env),
         &Def {
@@ -151,18 +151,25 @@ pub fn eval_statement<'a>(statement: &'a Statement, env: Env<'a>) -> (&'a Rc<Ter
     }
 }
 
-fn eval_with_env<'a>(term: &'a Rc<Term>, env: &TreeMap<&String, &'a Rc<Term>>) -> &'a Rc<Term> {
+fn eval_with_env<'a>(term: &'a Rc<Term>, env: &'a Env) -> Rc<Term> {
     match term.borrow() {
         &App(ref fun, ref arg) => match eval_with_env(fun, env).borrow() {
-            &Fun(ref argname, ref body) => {
-                eval_with_env(&body, &env.insert(&argname, eval_with_env(&arg, &env)))
-            }
-            _ => term,
+            &Fun(ref argname, ref body) => replace(&body, &argname, &eval_with_env(&arg, &env)),
+            _ => term.clone(),
         },
         &Var(ref name) => env.get(&name)
             .map(|value| eval_with_env(value.clone(), &env))
-            .unwrap_or(term),
-        _ => term,
+            .unwrap_or_else(|| term.clone()),
+        _ => term.clone(),
+    }
+}
+
+fn replace<'a>(term: &'a Rc<Term>, argname: &'a String, value: &'a Rc<Term>) -> Rc<Term> {
+    match term.borrow() {
+        &App(ref fun, ref arg) => app(replace(&fun, argname, value), replace(&arg, argname, value)),
+        &Fun(ref arg, ref body) => fun(&arg, replace(&body, argname, value)),
+        &Var(ref arg) if arg == argname => Rc::clone(value),
+        &Var(_) => Rc::clone(term),
     }
 }
 
@@ -205,12 +212,12 @@ mod tests {
 
     #[test]
     fn evaluating_variable() {
-        assert_eq!(eval(&var("x")), &var("x"));
+        assert_eq!(eval(&var("x")), var("x"));
     }
 
     #[test]
     fn apply_function() {
-        assert_eq!(eval(&app(fun("x", var("x")), var("y"))), &var("y"))
+        assert_eq!(eval(&app(fun("x", var("x")), var("y"))), var("y"))
     }
 
     #[test]
@@ -262,7 +269,7 @@ mod tests {
 
     #[test]
     fn evaluating_application_that_cannot_be_applied() {
-        assert_eq!(eval(&app(var("f"), var("y"))), &app(var("f"), var("y")))
+        assert_eq!(eval(&app(var("f"), var("y"))), app(var("f"), var("y")))
     }
 
     #[test]
@@ -276,7 +283,16 @@ mod tests {
                 },
                 Expr(app(var("f"), var("y"))),
             ]),
-            vec![&app(var("f"), var("y")), &fun("x", var("x")), &var("y")]
+            vec![app(var("f"), var("y")), fun("x", var("x")), var("y")]
         )
+    }
+
+    #[test]
+    fn evaluating_nested_function() {
+        assert_eq!(parse_eval("(x -> (y -> x)) a b"), var("a"))
+    }
+
+    fn parse_eval(input: &str) -> Rc<Term> {
+        eval(&parse(input).expect("Invalid test expression"))
     }
 }
