@@ -154,7 +154,9 @@ pub fn eval_statement<'a>(statement: &'a Statement, env: Env<'a>) -> (Rc<Term>, 
 fn eval_with_env<'a>(term: &'a Rc<Term>, env: &'a Env) -> Rc<Term> {
     match term.borrow() {
         &App(ref fun, ref arg) => match eval_with_env(fun, env).borrow() {
-            &Fun(ref argname, ref body) => replace(&body, &argname, &eval_with_env(&arg, &env)),
+            &Fun(ref argname, ref body) => {
+                eval_with_env(&replace(&body, &argname, &eval_with_env(&arg, &env)), env)
+            }
             _ => term.clone(),
         },
         &Var(ref name) => env.get(&name)
@@ -290,6 +292,11 @@ mod tests {
     #[test]
     fn evaluating_nested_function() {
         assert_eq!(parse_eval("(x -> (y -> x)) a b"), var("a"))
+    }
+
+    #[test]
+    fn recursive_application() {
+        assert_eq!(parse_eval("(y -> (f -> f y)) res (x -> x)"), var("res"))
     }
 
     fn parse_eval(input: &str) -> Rc<Term> {
