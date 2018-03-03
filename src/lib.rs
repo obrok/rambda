@@ -40,7 +40,7 @@ named!(alpha_utf8<&str>, map_res!(alpha, std::str::from_utf8));
 
 named!(
     parse_term<Rc<Term>>,
-    alt_complete!(parse_app | parse_fun | parse_var)
+    alt_complete!(parse_app | parse_fun | parse_parens | parse_var)
 );
 
 named!(
@@ -64,8 +64,13 @@ named!(
 named!(parse_var<Rc<Term>>, map!(alpha_utf8, var));
 
 named!(
+    parse_parens<Rc<Term>>,
+    do_parse!(tag!("(") >> whitespace >> val: parse_term >> whitespace >> tag!(")") >> (val))
+);
+
+named!(
     parse_fun<Rc<Term>>,
-    alt_complete!(parse_var | parse_fun_abstraction)
+    alt_complete!(parse_parens | parse_var | parse_fun_abstraction)
 );
 
 named!(
@@ -225,6 +230,11 @@ mod tests {
     #[test]
     fn application_is_left_associative() {
         assert_eq!(parse("a b c"), Ok(app(app(var("a"), var("b")), var("c"))))
+    }
+
+    #[test]
+    fn parens() {
+        assert_eq!(parse("a (b c)"), Ok(app(var("a"), app(var("b"), var("c")))))
     }
 
     #[test]
