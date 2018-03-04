@@ -173,8 +173,8 @@ fn eval_with_env<'a>(term: &'a Rc<Term>, env: &'a Env) -> Rc<Term> {
             _ => term.clone(),
         },
         &Var(ref name) => env.get(&name)
-            .map(|value| eval_with_env(value.clone(), &env))
-            .unwrap_or_else(|| term.clone()),
+            .map(|value| eval_with_env(value, &env))
+            .unwrap_or_else(|| Rc::clone(term)),
         _ => term.clone(),
     }
 }
@@ -182,6 +182,7 @@ fn eval_with_env<'a>(term: &'a Rc<Term>, env: &'a Env) -> Rc<Term> {
 fn replace<'a>(term: &'a Rc<Term>, argname: &'a String, value: &'a Rc<Term>) -> Rc<Term> {
     match term.borrow() {
         &App(ref fun, ref arg) => app(replace(&fun, argname, value), replace(&arg, argname, value)),
+        &Fun(ref arg, ref body) if arg == argname => fun(&arg, Rc::clone(body)),
         &Fun(ref arg, ref body) => fun(&arg, replace(&body, argname, value)),
         &Var(ref arg) if arg == argname => Rc::clone(value),
         &Var(_) => Rc::clone(term),
@@ -320,6 +321,11 @@ mod tests {
     #[test]
     fn recursive_application() {
         assert_eq!(parse_eval("(y -> (f -> f y)) res (x -> x)"), var("res"))
+    }
+
+    #[test]
+    fn name_shadowing() {
+        assert_eq!(parse_eval("(x -> (x -> x)) y z"), var("z"))
     }
 
     fn parse_eval(input: &str) -> Rc<Term> {
