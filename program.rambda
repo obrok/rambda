@@ -1,0 +1,53 @@
+true = (x -> (y -> x));
+true a b;
+
+false = (x -> (y -> y));
+false a b;
+
+if = (boolean -> (iftrue -> (iffalse -> boolean iftrue iffalse)));
+if false a b;
+if true a b;
+
+assert = (x -> if x yes no);
+
+pair = (l -> (r -> (accessor -> accessor l r)));
+left = (pair -> pair true);
+right = (pair -> pair false);
+
+somepair = pair jill bob;
+left somepair;
+right somepair;
+
+zero = (f -> (x -> x));
+succ = (n -> (f -> (z -> f (n f z))));
+one = succ zero;
+two = succ one;
+three = succ two;
+four = succ three;
+
+zero succ zero;
+one succ zero;
+two succ zero;
+
+positive = (n -> n (x -> true) false);
+assert (positive zero);
+assert (positive one);
+assert (positive two);
+
+add = (n -> (m -> n succ m));
+add two one;
+three;
+
+mul = (n -> (m -> (f -> n (m f))));
+assert (positive (mul zero one));
+assert (positive (mul one zero));
+assert (positive (mul one one));
+(mul two two) succ zero;
+four;
+
+nested_pair = pair (pair (pair (pair leftthing rightthing) otherthing) otherthing) otherthing;
+zero left nested_pair;
+one left nested_pair;
+two left nested_pair;
+(add one two) left nested_pair;
+(mul two two) left nested_pair;
