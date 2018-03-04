@@ -2,6 +2,7 @@
 name = "rambda"
 version = "0.1.0"
 authors = ["Paweł Obrok <pawel.obrok@gmail.com>"]
+license = "MIT"
 
 [dependencies]
 nom = "3.2.1"
