@@ -2,7 +2,7 @@ extern crate immutable_map;
 #[macro_use]
 extern crate nom;
 
-use nom::{alpha, multispace};
+use nom::{is_alphanumeric, multispace};
 use Term::*;
 use Statement::*;
 use immutable_map::TreeMap;
@@ -36,7 +36,15 @@ fn fun(arg: &str, body: Rc<Term>) -> Rc<Term> {
     Rc::new(Fun(String::from(arg), body))
 }
 
-named!(alpha_utf8<&str>, map_res!(alpha, std::str::from_utf8));
+named!(
+    alpha_utf8<&str>,
+    map_res!(take_while1!(is_identifier), std::str::from_utf8)
+);
+
+fn is_identifier(c: u8) -> bool {
+    let underscore = 95;
+    is_alphanumeric(c) || c == underscore
+}
 
 named!(
     parse_term<Rc<Term>>,
@@ -205,6 +213,11 @@ mod tests {
     #[test]
     fn simple_variable() {
         assert_eq!(parse("var"), Ok(var("var")));
+    }
+
+    #[test]
+    fn variable_with_digits_and_underscores() {
+        assert_eq!(parse("v_a_r_1"), Ok(var("v_a_r_1")))
     }
 
     #[test]
