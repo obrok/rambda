@@ -183,7 +183,7 @@ fn replace<'a>(term: &'a Rc<Term>, argname: &'a String, value: &'a Rc<Term>) -> 
 pub fn unparse(term: &Rc<Term>) -> String {
     match term.borrow() {
         &Var(ref x) => format!("{}", x),
-        &App(ref f, ref x) => format!("{} {}", unparse(f), unparse(x)),
+        &App(ref f, ref x) => format!("{} ({})", unparse(f), unparse(x)),
         &Fun(ref x, ref body) => format!("({} -> {})", x, unparse(body)),
     }
 }
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn unparsing() {
-        assert_eq!(unparse(&app(fun("x", var("x")), var("y"))), "(x -> x) y")
+        assert_eq!(unparse(&app(fun("x", var("x")), var("y"))), "(x -> x) (y)")
     }
 
     #[test]
